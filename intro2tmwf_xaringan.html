@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Introduction to tidymodels workflow</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Chun Su" />
+    <meta name="date" content="2022-07-14" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Introduction to tidymodels workflow
+### Chun Su
+### R-ladies Philly
+### 2022-07-14
+
+---
+
+
+
+
+
+class: center, middle
+
+## Keep in touch
+
+[&lt;svg viewBox="0 0 512 512" style="height:1em;position:relative;display:inline-block;top:.1em;" xmlns="http://www.w3.org/2000/svg"&gt;  &lt;path d="M464 64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h416c26.51 0 48-21.49 48-48V112c0-26.51-21.49-48-48-48zm0 48v40.805c-22.422 18.259-58.168 46.651-134.587 106.49-16.841 13.247-50.201 45.072-73.413 44.701-23.208.375-56.579-31.459-73.413-44.701C106.18 199.465 70.425 171.067 48 152.805V112h416zM48 400V214.398c22.914 18.251 55.409 43.862 104.938 82.646 21.857 17.205 60.134 55.186 103.062 54.955 42.717.231 80.509-37.199 103.053-54.947 49.528-38.783 82.032-64.401 104.947-82.653V400H48z"&gt;&lt;/path&gt;&lt;/svg&gt; sckinta@gmail.com](mailto:sckinta@gmail.com)
+
+[&lt;svg viewBox="0 0 496 512" style="height:1em;position:relative;display:inline-block;top:.1em;" xmlns="http://www.w3.org/2000/svg"&gt;  &lt;path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"&gt;&lt;/path&gt;&lt;/svg&gt; @sckinta](http://github.com/sckinta)
+
+[&lt;svg viewBox="0 0 448 512" style="height:1em;position:relative;display:inline-block;top:.1em;" xmlns="http://www.w3.org/2000/svg"&gt;  &lt;path d="M313.6 304c-28.7 0-42.5 16-89.6 16-47.1 0-60.8-16-89.6-16C60.2 304 0 364.2 0 438.4V464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-25.6c0-74.2-60.2-134.4-134.4-134.4zM400 464H48v-25.6c0-47.6 38.8-86.4 86.4-86.4 14.6 0 38.3 16 89.6 16 51.7 0 74.9-16 89.6-16 47.6 0 86.4 38.8 86.4 86.4V464zM224 288c79.5 0 144-64.5 144-144S303.5 0 224 0 80 64.5 80 144s64.5 144 144 144zm0-240c52.9 0 96 43.1 96 96s-43.1 96-96 96-96-43.1-96-96 43.1-96 96-96z"&gt;&lt;/path&gt;&lt;/svg&gt; learniningwithsckinta.netlify.app](https://learniningwithsckinta.netlify.app)
+
+[&lt;svg viewBox="0 0 512 512" style="height:1em;position:relative;display:inline-block;top:.1em;" xmlns="http://www.w3.org/2000/svg"&gt;  &lt;path d="M458.4 64.3C400.6 15.7 311.3 23 256 79.3 200.7 23 111.4 15.6 53.6 64.3-21.6 127.6-10.6 230.8 43 285.5l175.4 178.7c10 10.2 23.4 15.9 37.6 15.9 14.3 0 27.6-5.6 37.6-15.8L469 285.6c53.5-54.7 64.7-157.9-10.6-221.3zm-23.6 187.5L259.4 430.5c-2.4 2.4-4.4 2.4-6.8 0L77.2 251.8c-36.5-37.2-43.9-107.6 7.3-150.7 38.9-32.7 98.9-27.8 136.5 10.5l35 35.7 35-35.7c37.8-38.5 97.8-43.2 136.5-10.6 51.1 43.1 43.5 113.9 7.3 150.8z"&gt;&lt;/path&gt;&lt;/svg&gt; R-Ladies Philly](https://www.rladiesphilly.org/)
+
+
+---
+
+class: center, middle
+
+### The [**tidymodels**](https://www.tidymodels.org/) is _a collection of packages_ for modeling and machine learning using &lt;span style="color:red"&gt;tidyverse&lt;/span&gt; principles. 
+
+---
+## ML steps in &lt;span style="color:red"&gt;**tidymodels**&lt;/span&gt; workflow
+
+.pull-left[
+- split and resampling : [`rsample`](https://rsample.tidymodels.org/)
+
+- preprocess : [`recipes`](https://recipes.tidymodels.org/)
+
+- modeling : [`parsnip`](https://parsnip.tidymodels.org/)
+
+- tune models: [`tune`](https://tune.tidymodels.org/)
+
+- evaluation : [`yardstick`](https://yardstick.tidymodels.org/)
+
+]
+&lt;br&gt;
+&lt;br&gt;
+&lt;br&gt;
+.pull-right[
+&lt;img src="https://workflows.tidymodels.org/logo.png" style="width: 30%" /&gt;
+]
+
+&lt;img src="https://cdn.quantargo.com/assets/courses/course-r-machine-learning-tidymodels/01-basics/images/tidymodels_process.svg" style="width: 100%" /&gt;
+
+- connect everything together: [`workflows`](https://workflows.tidymodels.org/) and [`workflowsets`](https://workflowsets.tidymodels.org/)
+
+
+
+---
+## Make data budget
+
+- Initial split to training (75%) and testing (25%) data
+
+
+```r
+library(tidyverse)
+library(tidymodels)
+data("wa_churn")
+*set.seed(123)
+data_split &lt;- initial_split(
+  wa_churn, prop = 3/4,
+* strata = churn
+)
+data_train &lt;- training(data_split)
+data_test &lt;- testing(data_split)
+```
+
+--
+&lt;br&gt;
+  .center[`set.seed`: make split reproducible]
+--
+&lt;br&gt;
+  .center[`strata`: enforcing stratified sampling]
+--
+&lt;br&gt;
+   .center[`training` vs. `testing`]
+
+???
+by default, it split 75%
+
+This is more common with classification problems where the response variable may be severely imbalanced (e.g., 90% of observations with response “Yes” and 10% with response “No”). However, we can also apply stratified sampling to regression problems for data sets that have a small sample size and where the response variable deviates strongly from normality (i.e., positively skewed like Sale_Price). With a continuous response variable, stratified sampling will segment into quantiles and randomly sample from each. Consequently, this will help ensure a balanced representation of the response distribution in both the training and test sets.
+
+we do not use the test set to assess model performance during the training phase. So how do we assess the generalization performance of the model?
+---
+## Budget training data with resampling
+
+&lt;br&gt;
+&lt;br&gt;
+
+--
+.center[.large[**what is resampling?**]]
+
+--
+&gt; an alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
+
+&lt;br&gt;
+&lt;br&gt;
+--
+.center[ .large[**why do we perform resampling?**] ]
+
+--
+&gt; To check the variability of model and assess model performance during the training phase.
+
+
+???
+fit more accurate models, model selection and parameter tuning.
+we do not use the test set to assess model performance during the training phase. So how do we assess the generalization performance of the model
+
+---
+## resample methods in &lt;span style="color:red"&gt;**rsample**&lt;/span&gt;
+
+- k-fold cross-validation (CV)
+
+&lt;img src="https://bradleyboehmke.github.io/HOML/images/cv.png" style="width: 100%" /&gt;
+.footnote[https://bradleyboehmke.github.io/]
+--
+&lt;br&gt;
+
+
+```r
+set.seed(123)
+data_folds &lt;- vfold_cv(data_train, strata = churn, v = 10)
+```
+
+---
+## resample methods in &lt;span style="color:red"&gt;**rsample**&lt;/span&gt;
+- bootstrap
+
+&lt;img src="https://bradleyboehmke.github.io/HOML/images/bootstrap-scheme.png" style="width: 100%" /&gt;
+.footnote[https://bradleyboehmke.github.io/]
+--
+
+
+```r
+set.seed(123)
+data_boots &lt;- bootstraps(data_train, times = 25, strata = Y)
+```
+  
+
+???
+the same size as the original data set from which it was constructed.
+
+---
+## Feuture engineering and preprocessing
+
+.center[.large[&gt;The features you use influence more than everything else the result. No algorithm alone, to my knowledge, can supplement the information gain given by correct feature engineering. — *Luca Massaron*]]
+
+&lt;img src="https://imageio.forbes.com/blogs-images/gilpress/files/2016/03/Time-1200x511.jpg" style="width: 100%" /&gt;
+--
+
+
+```r
+data_rec &lt;- recipe(churn ~ ., data = data_train)
+```
+
+
+???
+feature engineering can make or break an algorithm’s predictive ability and deserves
+
+---
+## Feuture engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
+
+- dealing with missing data (imputation)
+
+
+```r
+data_rec %&gt;%
+  step_impute_knn(all_predictors(), neighbors = 6)
+```
+
+--
+
+- feature filtering: remove variance "zero" features
+
+
+```r
+data_rec %&gt;%
+  step_zv(all_predictors())
+```
+
+--
+
+- numeric feature transformation and normalization
+
+
+```r
+data_rec %&gt;%
+  step_log() %&gt;% 
+  step_normalize(all_numeric_predictors())
+```
+
+--
+
+- decode qualitative predictors 
+
+
+```r
+data_rec %&gt;%
+  step_dummy(all_nominal_predictors())
+```
+
+---
+## Feuture engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
+
+- create new features
+
+- add interactive term
+
+- define roles
+
+- dimension reduction
+
+- ...
+
+--
+
+
+```r
+data_rec &lt;- data_rec %&gt;% 
+  step_impute_knn(total_charges, neighbors = 6) %&gt;% 
+  step_mutate_at(c("female", "senior_citizen", "partner", "dependents", "phone_service", "paperless_billing"), fn=function(x){as.factor(ifelse(x==0, "No", "Yes"))}) %&gt;% 
+  step_normalize(tenure, monthly_charges, total_charges) %&gt;% 
+  step_dummy(all_nominal_predictors())
+
+data_rec %&gt;% prep() %&gt;% juice() # view preprocessed data
+```
+
+&lt;br&gt;
+
+--
+.center[**Data pre-process must be done on the training set only in order to avoid [data leakage](https://www.kaggle.com/code/alexisbcook/data-leakage/tutorial)**]
+???
+Filter out zero or near-zero variance features.
+Perform imputation if required.
+Normalize to resolve numeric feature skewness.
+Standardize (center and scale) numeric features.
+Perform dimension reduction (e.g., PCA) on numeric features.
+One-hot or dummy encode categorical features.
+
+https://machinelearningmastery.com/data-leakage-machine-learning/
+
+---
+## Specify models with &lt;span style="color:red"&gt;**parsnip**&lt;/span&gt; 
+
+
+
+```r
+lm_spec &lt;- linear_reg() %&gt;% # define a model
+  set_engine("lm") %&gt;% # select an engine (require packages installed)
+  set_mode("regression") # select a mode
+```
+
+--
+Two modes of modeling:
+
+- regression
+
+- classification
+
+--
+
+*Some models can be used in more than one mode. It is a good practice to specify each model with `set_mode`*
+&lt;br&gt;
+--
+&lt;br&gt;
+*The same model can be fit with different engines where hyperparameters name can be different accordingly*
+
+
+---
+## Hyperparameters vs. Parameters
+
+&lt;img src="https://www.hitechnectar.com/wp-content/uploads/2020/04/Hyperparameter-vs.-Parameter-Differences-Tabular-Diagram.jpg" style="width: 100%" /&gt;
+
+.small[https://www.hitechnectar.com/blogs/hyperparameter-vs-parameter]
+
+
+---
+## Tune hyperparameters with &lt;span style="color:red"&gt;tune&lt;/span&gt; and &lt;span style="color:red"&gt;dial&lt;/span&gt;
+
+-  Identify which hyperparameters to tune in model specification
+
+
+```r
+rf_spec &lt;- rand_forest(
+* mtry = tune(),
+* min_n = tune()
+) %&gt;% 
+  set_engine(
+    "ranger", 
+    importance = "permutation" # for feature vip
+  ) %&gt;% 
+  set_mode("classification") 
+```
+
+--
+- Create a grid of values for hyperparameters
+
+
+```r
+rf_grid &lt;- grid_regular(
+* mtry(range = c(1L, 10L)), # mtry need upbound specified
+* min_n(),
+  levels = 3
+)
+```
+
+---
+## Tune hyperparameters in &lt;span style="color:red"&gt;workflow&lt;/span&gt;
+
+`workflow` stitch all elements together
+
+
+```r
+rf_wf &lt;- workflow() %&gt;% # create a workflow
+  add_model(rf_spec) %&gt;% # add model specification
+  add_recipe(data_rec) # add data recipes
+
+rf_res &lt;- rf_wf %&gt;% 
+  tune_grid(
+    resamples = data_folds, # use resample cv folds to tune
+    grid = rf_grid # hyperparameters grid
+  )
+
+rf_res
+```
+
+
+```
+## # A tibble: 5 × 4
+##   splits             id     .metrics          .notes          
+##   &lt;list&gt;             &lt;chr&gt;  &lt;list&gt;            &lt;list&gt;          
+## 1 &lt;split [4752/529]&gt; Fold01 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
+## 2 &lt;split [4753/528]&gt; Fold02 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
+## 3 &lt;split [4753/528]&gt; Fold03 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
+## 4 &lt;split [4753/528]&gt; Fold04 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
+## 5 &lt;split [4753/528]&gt; Fold05 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
+```
+
+
+---
+## Evaluate hyperparameters 
+
+
+```r
+rf_res %&gt;% 
+  collect_metrics() %&gt;% 
+  head(10)
+```
+
+```
+## # A tibble: 10 × 8
+##     mtry min_n .metric  .estimator  mean     n  std_err .config
+##    &lt;int&gt; &lt;int&gt; &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;  
+##  1     1     2 accuracy binary     0.739    10 0.000887 Prepro…
+##  2     1     2 roc_auc  binary     0.828    10 0.00858  Prepro…
+##  3     5     2 accuracy binary     0.798    10 0.00447  Prepro…
+##  4     5     2 roc_auc  binary     0.837    10 0.00686  Prepro…
+##  5    10     2 accuracy binary     0.786    10 0.00464  Prepro…
+##  6    10     2 roc_auc  binary     0.826    10 0.00713  Prepro…
+##  7     1    21 accuracy binary     0.739    10 0.00102  Prepro…
+##  8     1    21 roc_auc  binary     0.827    10 0.00893  Prepro…
+##  9     5    21 accuracy binary     0.803    10 0.00456  Prepro…
+## 10     5    21 roc_auc  binary     0.843    10 0.00623  Prepro…
+```
+
+---
+## Evaluate hyperparameters 
+
+![](intro2tmwf_xaringan_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
+
+---
+## finalize workflow and evalute model with &lt;span style="color:red"&gt;yardstick&lt;/span&gt;
+
+- finalize workflow
+
+
+```r
+best_rf &lt;- rf_res %&gt;% 
+  select_best(metric = "roc_auc")
+final_wf &lt;- rf_wf %&gt;% 
+  finalize_workflow(best_rf)
+```
+
+--
+- last fit to test data
+
+
+```r
+final_fit &lt;- final_wf %&gt;%
+  last_fit(data_split)
+```
+
+--
+- evaluate final fit on test data using `yardstick`
+
+
+```r
+final_fit %&gt;%
+  collect_predictions() %&gt;% 
+  roc_auc(churn, .pred_Yes)
+```
+
+```
+## # A tibble: 1 × 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary         0.845
+```
+
+
+---
+## ROC curve on test data
+
+
+.pull-left[
+
+```r
+final_fit %&gt;%
+  collect_predictions() %&gt;% 
+  roc_curve(churn, .pred_Yes) %&gt;% 
+  autoplot()
+```
+]
+
+.pull-right[
+&lt;img src="intro2tmwf_xaringan_files/figure-html/unnamed-chunk-22-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+
+---
+## Importance of variables
+
+.pull-left[
+
+```r
+library(vip)
+final_tree &lt;- 
+  extract_workflow(final_fit)
+
+final_tree %&gt;% 
+  extract_fit_parsnip() %&gt;% 
+  vip() +
+  theme_bw()
+```
+]
+
+.pull-right[
+![](intro2tmwf_xaringan_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
+
+]
+
+---
+## Reference
+
+- [Tidymodels Get Started](https://www.tidymodels.org/start/)
+
+
+- [Hands-On Machine Learning with R](https://bradleyboehmke.github.io/HOML/) by Bradley Boehmke &amp; Brandon Greenwell
+
+
+- [An Introduction to Machine Learning with R](https://lgatto.github.io/IntroMachineLearningWithR/index.html) by Laurent Gatto
+
+
+- [Tidy Modeling with R](https://www.tmwr.org/) by Max Kuhn &amp; Julia Silge
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

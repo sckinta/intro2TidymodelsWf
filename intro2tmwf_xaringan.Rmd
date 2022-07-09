@@ -1,0 +1,456 @@
+---
+title: "Introduction to tidymodels workflow"
+author: "Chun Su"
+institute: "R-ladies Philly"
+date: "2022-07-14"
+output:
+  xaringan::moon_reader:
+    css: ["default", "rladies", "rladies-fonts"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    
+---
+
+
+```{r include=F}
+knitr::opts_chunk$set(echo=T, eval = F, message = F, warning = F)
+load("data.Rdata")
+```
+
+class: center, middle
+
+## Keep in touch
+
+[`r icons::fontawesome("envelope")` sckinta@gmail.com](mailto:sckinta@gmail.com)
+
+[`r icons::fontawesome("github")` @sckinta](http://github.com/sckinta)
+
+[`r icons::fontawesome("user")` learniningwithsckinta.netlify.app](https://learniningwithsckinta.netlify.app)
+
+[`r icons::fontawesome("heart")` R-Ladies Philly](https://www.rladiesphilly.org/)
+
+
+---
+
+class: center, middle
+
+### The [**tidymodels**](https://www.tidymodels.org/) is _a collection of packages_ for modeling and machine learning using <span style="color:red">tidyverse</span> principles. 
+
+---
+## ML steps in <span style="color:red">**tidymodels**</span> workflow
+
+.pull-left[
+- split and resampling : [`rsample`](https://rsample.tidymodels.org/)
+
+- preprocess : [`recipes`](https://recipes.tidymodels.org/)
+
+- modeling : [`parsnip`](https://parsnip.tidymodels.org/)
+
+- tune models: [`tune`](https://tune.tidymodels.org/)
+
+- evaluation : [`yardstick`](https://yardstick.tidymodels.org/)
+
+]
+<br>
+<br>
+<br>
+.pull-right[
+<img src="https://workflows.tidymodels.org/logo.png" style="width: 30%" />
+]
+
+<img src="https://cdn.quantargo.com/assets/courses/course-r-machine-learning-tidymodels/01-basics/images/tidymodels_process.svg" style="width: 100%" />
+
+- connect everything together: [`workflows`](https://workflows.tidymodels.org/) and [`workflowsets`](https://workflowsets.tidymodels.org/)
+
+
+
+---
+## Make data budget
+
+- Initial split to training (75%) and testing (25%) data
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+data("wa_churn")
+set.seed(123) #<<
+data_split <- initial_split(
+  wa_churn, prop = 3/4,
+  strata = churn #<<
+)
+data_train <- training(data_split)
+data_test <- testing(data_split)
+```
+
+--
+<br>
+  .center[`set.seed`: make split reproducible]
+--
+<br>
+  .center[`strata`: enforcing stratified sampling]
+--
+<br>
+   .center[`training` vs. `testing`]
+
+???
+by default, it split 75%
+
+This is more common with classification problems where the response variable may be severely imbalanced (e.g., 90% of observations with response “Yes” and 10% with response “No”). However, we can also apply stratified sampling to regression problems for data sets that have a small sample size and where the response variable deviates strongly from normality (i.e., positively skewed like Sale_Price). With a continuous response variable, stratified sampling will segment into quantiles and randomly sample from each. Consequently, this will help ensure a balanced representation of the response distribution in both the training and test sets.
+
+we do not use the test set to assess model performance during the training phase. So how do we assess the generalization performance of the model?
+---
+## Budget training data with resampling
+
+<br>
+<br>
+
+--
+.center[.large[**what is resampling?**]]
+
+--
+> an alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
+
+<br>
+<br>
+--
+.center[ .large[**why do we perform resampling?**] ]
+
+--
+> To check the variability of model and assess model performance during the training phase.
+
+
+???
+fit more accurate models, model selection and parameter tuning.
+we do not use the test set to assess model performance during the training phase. So how do we assess the generalization performance of the model
+
+---
+## resample methods in <span style="color:red">**rsample**</span>
+
+- k-fold cross-validation (CV)
+
+<img src="https://bradleyboehmke.github.io/HOML/images/cv.png" style="width: 100%" />
+.footnote[https://bradleyboehmke.github.io/]
+--
+<br>
+
+```{r}
+set.seed(123)
+data_folds <- vfold_cv(data_train, strata = churn, v = 10)
+```
+
+---
+## resample methods in <span style="color:red">**rsample**</span>
+- bootstrap
+
+<img src="https://bradleyboehmke.github.io/HOML/images/bootstrap-scheme.png" style="width: 100%" />
+.footnote[https://bradleyboehmke.github.io/]
+--
+
+```{r eval=F}
+set.seed(123)
+data_boots <- bootstraps(data_train, times = 25, strata = Y)
+```
+  
+
+???
+the same size as the original data set from which it was constructed.
+
+---
+## Feuture engineering and preprocessing
+
+.center[.large[>The features you use influence more than everything else the result. No algorithm alone, to my knowledge, can supplement the information gain given by correct feature engineering. — *Luca Massaron*]]
+
+<img src="https://imageio.forbes.com/blogs-images/gilpress/files/2016/03/Time-1200x511.jpg" style="width: 100%" />
+--
+
+```{r}
+data_rec <- recipe(churn ~ ., data = data_train)
+```
+
+
+???
+feature engineering can make or break an algorithm’s predictive ability and deserves
+
+---
+## Feuture engineering with <span style="color:red">**recipes**</span>
+
+- dealing with missing data (imputation)
+
+```{r}  
+data_rec %>%
+  step_impute_knn(all_predictors(), neighbors = 6)
+```
+
+--
+
+- feature filtering: remove variance "zero" features
+
+```{r}
+data_rec %>%
+  step_zv(all_predictors())
+```
+
+--
+
+- numeric feature transformation and normalization
+
+```{r}
+data_rec %>%
+  step_log() %>% 
+  step_normalize(all_numeric_predictors())
+```
+
+--
+
+- decode qualitative predictors 
+
+```{r}
+data_rec %>%
+  step_dummy(all_nominal_predictors())
+```
+
+---
+## Feuture engineering with <span style="color:red">**recipes**</span>
+
+- create new features
+
+- add interactive term
+
+- define roles
+
+- dimension reduction
+
+- ...
+
+--
+
+```{r results='hide'}
+data_rec <- data_rec %>% 
+  step_impute_knn(total_charges, neighbors = 6) %>% 
+  step_mutate_at(c("female", "senior_citizen", "partner", "dependents", "phone_service", "paperless_billing"), fn=function(x){as.factor(ifelse(x==0, "No", "Yes"))}) %>% 
+  step_normalize(tenure, monthly_charges, total_charges) %>% 
+  step_dummy(all_nominal_predictors())
+
+data_rec %>% prep() %>% juice() # view preprocessed data
+```
+
+<br>
+
+--
+.center[**Data pre-process must be done on the training set only in order to avoid [data leakage](https://www.kaggle.com/code/alexisbcook/data-leakage/tutorial)**]
+???
+Filter out zero or near-zero variance features.
+Perform imputation if required.
+Normalize to resolve numeric feature skewness.
+Standardize (center and scale) numeric features.
+Perform dimension reduction (e.g., PCA) on numeric features.
+One-hot or dummy encode categorical features.
+
+https://machinelearningmastery.com/data-leakage-machine-learning/
+
+---
+## Specify models with <span style="color:red">**parsnip**</span> 
+
+
+```{r}
+lm_spec <- linear_reg() %>% # define a model
+  set_engine("lm") %>% # select an engine (require packages installed)
+  set_mode("regression") # select a mode
+```
+
+--
+Two modes of modeling:
+
+- regression
+
+- classification
+
+--
+
+*Some models can be used in more than one mode. It is a good practice to specify each model with `set_mode`*
+<br>
+--
+<br>
+*The same model can be fit with different engines where hyperparameters name can be different accordingly*
+
+
+---
+## Hyperparameters vs. Parameters
+
+<img src="https://www.hitechnectar.com/wp-content/uploads/2020/04/Hyperparameter-vs.-Parameter-Differences-Tabular-Diagram.jpg" style="width: 100%" />
+
+.small[https://www.hitechnectar.com/blogs/hyperparameter-vs-parameter]
+
+
+---
+## Tune hyperparameters with <span style="color:red">tune</span> and <span style="color:red">dial</span>
+
+-  Identify which hyperparameters to tune in model specification
+
+```{r}
+rf_spec <- rand_forest(
+  mtry = tune(),  #<<
+  min_n = tune()  #<<
+) %>% 
+  set_engine(
+    "ranger", 
+    importance = "permutation" # for feature vip
+  ) %>% 
+  set_mode("classification") 
+```
+
+--
+- Create a grid of values for hyperparameters
+
+```{r}
+rf_grid <- grid_regular(
+  mtry(range = c(1L, 10L)), # mtry need upbound specified #<<
+  min_n(), #<<
+  levels = 3
+)
+```
+
+---
+## Tune hyperparameters in <span style="color:red">workflow</span>
+
+`workflow` stitch all elements together
+
+```{r}
+rf_wf <- workflow() %>% # create a workflow
+  add_model(rf_spec) %>% # add model specification
+  add_recipe(data_rec) # add data recipes
+
+rf_res <- rf_wf %>% 
+  tune_grid(
+    resamples = data_folds, # use resample cv folds to tune
+    grid = rf_grid # hyperparameters grid
+  )
+
+rf_res
+```
+
+```{r eval=T, echo=F}
+rf_res %>% 
+  head(5)
+```
+
+
+---
+## Evaluate hyperparameters 
+
+```{r eval=T}
+rf_res %>% 
+  collect_metrics() %>% 
+  head(10)
+```
+
+---
+## Evaluate hyperparameters 
+
+```{r echo=F, eval = T, fig.width=9}
+rf_res %>% 
+  collect_metrics() %>% 
+  filter(.metric == "roc_auc") %>% 
+  mutate(min_n = as.factor(min_n)) %>% 
+  ggplot(aes(x = mtry, y = mean, color = min_n, group = min_n)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(y = "roc_auc")
+```
+
+---
+## finalize workflow and evalute model with <span style="color:red">yardstick</span>
+
+- finalize workflow
+
+```{r}
+best_rf <- rf_res %>% 
+  select_best(metric = "roc_auc")
+final_wf <- rf_wf %>% 
+  finalize_workflow(best_rf)
+```
+
+--
+- last fit to test data
+
+```{r}
+final_fit <- final_wf %>%
+  last_fit(data_split)
+```
+
+--
+- evaluate final fit on test data using `yardstick`
+
+```{r eval=T}
+final_fit %>%
+  collect_predictions() %>% 
+  roc_auc(churn, .pred_Yes)
+```
+
+
+---
+## ROC curve on test data
+
+
+.pull-left[
+```{r}
+final_fit %>%
+  collect_predictions() %>% 
+  roc_curve(churn, .pred_Yes) %>% 
+  autoplot()
+```
+]
+
+.pull-right[
+```{r eval = T, echo=F, fig.align="center"}
+final_fit %>%
+  collect_predictions() %>% 
+  roc_curve(churn, .pred_Yes) %>% 
+  autoplot()
+```
+]
+
+
+---
+## Importance of variables
+
+.pull-left[
+```{r eval=F}
+library(vip)
+final_tree <- 
+  extract_workflow(final_fit)
+
+final_tree %>% 
+  extract_fit_parsnip() %>% 
+  vip() +
+  theme_bw()
+```
+]
+
+.pull-right[
+```{r eval=T, echo=F}
+final_tree %>% 
+  extract_fit_parsnip() %>% 
+  vip::vip() +
+  theme_bw()
+```
+
+]
+
+---
+## Reference
+
+- [Tidymodels Get Started](https://www.tidymodels.org/start/)
+
+
+- [Hands-On Machine Learning with R](https://bradleyboehmke.github.io/HOML/) by Bradley Boehmke & Brandon Greenwell
+
+
+- [An Introduction to Machine Learning with R](https://lgatto.github.io/IntroMachineLearningWithR/index.html) by Laurent Gatto
+
+
+- [Tidy Modeling with R](https://www.tmwr.org/) by Max Kuhn & Julia Silge
