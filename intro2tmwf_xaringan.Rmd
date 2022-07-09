@@ -43,13 +43,13 @@ class: center, middle
 ## ML steps in <span style="color:red">**tidymodels**</span> workflow
 
 .pull-left[
-- split and resampling : [`rsample`](https://rsample.tidymodels.org/)
+- resampling : [`rsample`](https://rsample.tidymodels.org/)
 
 - preprocess : [`recipes`](https://recipes.tidymodels.org/)
 
 - modeling : [`parsnip`](https://parsnip.tidymodels.org/)
 
-- tune models: [`tune`](https://tune.tidymodels.org/)
+- tune hyperparameters: [`tune`](https://tune.tidymodels.org/)
 
 - evaluation : [`yardstick`](https://yardstick.tidymodels.org/)
 
@@ -75,12 +75,16 @@ class: center, middle
 ```{r}
 library(tidyverse)
 library(tidymodels)
+
 data("wa_churn")
+
 set.seed(123) #<<
+
 data_split <- initial_split(
   wa_churn, prop = 3/4,
   strata = churn #<<
 )
+
 data_train <- training(data_split)
 data_test <- testing(data_split)
 ```
@@ -111,7 +115,7 @@ we do not use the test set to assess model performance during the training phase
 .center[.large[**what is resampling?**]]
 
 --
-> an alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
+> An alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
 
 <br>
 <br>
@@ -136,7 +140,7 @@ we do not use the test set to assess model performance during the training phase
 
 .footnote[https://bradleyboehmke.github.io/]
 --
-<br>
+
 
 ```{r}
 set.seed(123)
@@ -367,7 +371,7 @@ rf_res %>%
 ```
 
 ---
-## finalize workflow and evalute model with <span style="color:red">yardstick</span>
+## finalize workflow and evaluate model with <span style="color:red">yardstick</span>
 
 - finalize workflow
 
@@ -397,7 +401,7 @@ final_fit %>%
 
 
 ---
-## ROC curve on test data
+## ROC curve on prediction of test data
 
 
 .pull-left[
@@ -458,3 +462,7 @@ final_tree %>%
 
 
 - [Tidy Modeling with R](https://www.tmwr.org/) by Max Kuhn & Julia Silge
+
+- [Hyperparameter vs. Parameter: Difference Between The Two](https://www.hitechnectar.com/blogs/hyperparameter-vs-parameter) by Kelsey Taylor
+
+- [Data Leakage in Machine Learning](https://machinelearningmastery.com/data-leakage-machine-learning/) by Jason Brownlee

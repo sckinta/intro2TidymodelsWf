@@ -47,13 +47,13 @@ class: center, middle
 ## ML steps in &lt;span style="color:red"&gt;**tidymodels**&lt;/span&gt; workflow
 
 .pull-left[
-- split and resampling : [`rsample`](https://rsample.tidymodels.org/)
+- resampling : [`rsample`](https://rsample.tidymodels.org/)
 
 - preprocess : [`recipes`](https://recipes.tidymodels.org/)
 
 - modeling : [`parsnip`](https://parsnip.tidymodels.org/)
 
-- tune models: [`tune`](https://tune.tidymodels.org/)
+- tune hyperparameters: [`tune`](https://tune.tidymodels.org/)
 
 - evaluation : [`yardstick`](https://yardstick.tidymodels.org/)
 
@@ -80,12 +80,16 @@ class: center, middle
 ```r
 library(tidyverse)
 library(tidymodels)
+
 data("wa_churn")
+
 *set.seed(123)
+
 data_split &lt;- initial_split(
   wa_churn, prop = 3/4,
 * strata = churn
 )
+
 data_train &lt;- training(data_split)
 data_test &lt;- testing(data_split)
 ```
@@ -116,7 +120,7 @@ we do not use the test set to assess model performance during the training phase
 .center[.large[**what is resampling?**]]
 
 --
-&gt; an alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
+&gt; An alternative approach by allowing us to repeatedly fit a model of interest to parts of the training data and test its performance on other parts.
 
 &lt;br&gt;
 &lt;br&gt;
@@ -141,7 +145,7 @@ we do not use the test set to assess model performance during the training phase
 
 .footnote[https://bradleyboehmke.github.io/]
 --
-&lt;br&gt;
+
 
 
 ```r
@@ -398,7 +402,7 @@ rf_res %&gt;%
 ![](intro2tmwf_xaringan_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
 
 ---
-## finalize workflow and evalute model with &lt;span style="color:red"&gt;yardstick&lt;/span&gt;
+## finalize workflow and evaluate model with &lt;span style="color:red"&gt;yardstick&lt;/span&gt;
 
 - finalize workflow
 
@@ -438,7 +442,7 @@ final_fit %&gt;%
 
 
 ---
-## ROC curve on test data
+## ROC curve on prediction of test data
 
 
 .pull-left[
@@ -491,6 +495,10 @@ final_tree %&gt;%
 
 
 - [Tidy Modeling with R](https://www.tmwr.org/) by Max Kuhn &amp; Julia Silge
+
+- [Hyperparameter vs. Parameter: Difference Between The Two](https://www.hitechnectar.com/blogs/hyperparameter-vs-parameter) by Kelsey Taylor
+
+- [Data Leakage in Machine Learning](https://machinelearningmastery.com/data-leakage-machine-learning/) by Jason Brownlee
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
