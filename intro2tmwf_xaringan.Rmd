@@ -132,6 +132,8 @@ we do not use the test set to assess model performance during the training phase
 - k-fold cross-validation (CV)
 
 <img src="https://bradleyboehmke.github.io/HOML/images/cv.png" style="width: 100%" />
+
+
 .footnote[https://bradleyboehmke.github.io/]
 --
 <br>
@@ -146,6 +148,8 @@ data_folds <- vfold_cv(data_train, strata = churn, v = 10)
 - bootstrap
 
 <img src="https://bradleyboehmke.github.io/HOML/images/bootstrap-scheme.png" style="width: 100%" />
+
+
 .footnote[https://bradleyboehmke.github.io/]
 --
 
