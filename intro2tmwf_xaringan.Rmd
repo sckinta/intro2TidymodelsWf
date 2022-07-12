@@ -167,7 +167,7 @@ data_boots <- bootstraps(data_train, times = 25, strata = Y)
 the same size as the original data set from which it was constructed.
 
 ---
-## Feuture engineering and preprocessing
+## Feature engineering and preprocessing
 
 .center[.large[>The features you use influence more than everything else the result. No algorithm alone, to my knowledge, can supplement the information gain given by correct feature engineering. — *Luca Massaron*]]
 
@@ -183,7 +183,7 @@ data_rec <- recipe(churn ~ ., data = data_train)
 feature engineering can make or break an algorithm’s predictive ability and deserves
 
 ---
-## Feuture engineering with <span style="color:red">**recipes**</span>
+## Feature engineering with <span style="color:red">**recipes**</span>
 
 - dealing with missing data (imputation)
 
@@ -221,7 +221,7 @@ data_rec %>%
 ```
 
 ---
-## Feuture engineering with <span style="color:red">**recipes**</span>
+## Feature engineering with <span style="color:red">**recipes**</span>
 
 - create new features
 
@@ -233,6 +233,7 @@ data_rec %>%
 
 - ...
 
+.footnote[https://recipes.tidymodels.org/reference/]
 --
 
 ```{r results='hide'}
@@ -249,6 +250,8 @@ data_rec %>% prep() %>% juice() # view preprocessed data
 
 --
 .center[**Data pre-process must be done on the training set only in order to avoid [data leakage](https://www.kaggle.com/code/alexisbcook/data-leakage/tutorial)**]
+
+
 ???
 Filter out zero or near-zero variance features.
 Perform imputation if required.
@@ -269,6 +272,7 @@ lm_spec <- linear_reg() %>% # define a model
   set_mode("regression") # select a mode
 ```
 
+.footnote[https://parsnip.tidymodels.org/reference/]
 --
 Two modes of modeling:
 
@@ -283,6 +287,7 @@ Two modes of modeling:
 --
 <br>
 *The same model can be fit with different engines where hyperparameters name can be different accordingly*
+
 
 
 ---
@@ -310,10 +315,11 @@ rf_spec <- rand_forest(
   set_mode("classification") 
 ```
 
+.footnote[https://tune.tidymodels.org/reference/]
 --
 - Create a grid of values for hyperparameters
 
-```{r}
+```{r eval = T}
 rf_grid <- grid_regular(
   mtry(range = c(1L, 10L)), # mtry need upbound specified #<<
   min_n(), #<<
@@ -321,23 +327,27 @@ rf_grid <- grid_regular(
 )
 ```
 
----
-## Tune hyperparameters in <span style="color:red">workflow</span>
 
-`workflow` stitch all elements together
+
+---
+## Tune hyperparameters in <span style="color:red">workflows</span>
+
+`workflows` stitch all elements together
 
 ```{r}
 rf_wf <- workflow() %>% # create a workflow
-  add_model(rf_spec) %>% # add model specification
-  add_recipe(data_rec) # add data recipes
+  add_model(rf_spec) %>% # add model specification #<<
+  add_recipe(data_rec) # add data recipes #<<
 
+set.seed(234) # for random forest fit
 rf_res <- rf_wf %>% 
-  tune_grid(
-    resamples = data_folds, # use resample cv folds to tune
-    grid = rf_grid # hyperparameters grid
+  tune_grid( #<<
+    resamples = data_folds, # use resample cv folds to tune #<<
+    grid = rf_grid, # hyperparameters grid #<<
+    control = control_grid(save_workflow = T) # save workflow
   )
 
-rf_res
+rf_res %>% head(5)
 ```
 
 ```{r eval=T, echo=F}
@@ -345,6 +355,8 @@ rf_res %>%
   head(5)
 ```
 
+--
+.center[.bold[Question: how many times the model was fitted in our case?]]
 
 ---
 ## Evaluate hyperparameters 
@@ -386,6 +398,7 @@ final_wf <- rf_wf %>%
 - last fit to test data
 
 ```{r}
+set.seed(123) # for random forest fit
 final_fit <- final_wf %>%
   last_fit(data_split)
 ```
@@ -422,6 +435,34 @@ final_fit %>%
 ```
 ]
 
+---
+## Predict on new data using trained workflow
+
+- Returns the trained workflow object
+
+```{r}
+final_wf_trained <- final_fit %>% 
+  extract_workflow() #<<
+```
+
+--
+
+.center[required the control option `save_workflow = TRUE` was used in `tune_grid`] 
+
+.center[The trained workflow object can be saved for future prediction]
+
+<br>
+--
+
+- predict on new data
+
+```{r}
+final_wf_trained %>% 
+  augment(new_data = wa_churn[1:5,]) %>%  #<<
+  select(churn, contains(".pred_"))
+```
+
+.center[`augment` vs. `predict`]
 
 ---
 ## Importance of variables
@@ -429,10 +470,8 @@ final_fit %>%
 .pull-left[
 ```{r eval=F}
 library(vip)
-final_tree <- 
-  extract_workflow(final_fit)
 
-final_tree %>% 
+final_wf_trained %>% 
   extract_fit_parsnip() %>% 
   vip() +
   theme_bw()
@@ -441,7 +480,7 @@ final_tree %>%
 
 .pull-right[
 ```{r eval=T, echo=F}
-final_tree %>% 
+final_wf_trained %>% 
   extract_fit_parsnip() %>% 
   vip::vip() +
   theme_bw()

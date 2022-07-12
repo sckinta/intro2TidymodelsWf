@@ -174,7 +174,7 @@ data_boots &lt;- bootstraps(data_train, times = 25, strata = Y)
 the same size as the original data set from which it was constructed.
 
 ---
-## Feuture engineering and preprocessing
+## Feature engineering and preprocessing
 
 .center[.large[&gt;The features you use influence more than everything else the result. No algorithm alone, to my knowledge, can supplement the information gain given by correct feature engineering. — *Luca Massaron*]]
 
@@ -191,7 +191,7 @@ data_rec &lt;- recipe(churn ~ ., data = data_train)
 feature engineering can make or break an algorithm’s predictive ability and deserves
 
 ---
-## Feuture engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
+## Feature engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
 
 - dealing with missing data (imputation)
 
@@ -233,7 +233,7 @@ data_rec %&gt;%
 ```
 
 ---
-## Feuture engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
+## Feature engineering with &lt;span style="color:red"&gt;**recipes**&lt;/span&gt;
 
 - create new features
 
@@ -245,6 +245,7 @@ data_rec %&gt;%
 
 - ...
 
+.footnote[https://recipes.tidymodels.org/reference/]
 --
 
 
@@ -262,6 +263,8 @@ data_rec %&gt;% prep() %&gt;% juice() # view preprocessed data
 
 --
 .center[**Data pre-process must be done on the training set only in order to avoid [data leakage](https://www.kaggle.com/code/alexisbcook/data-leakage/tutorial)**]
+
+
 ???
 Filter out zero or near-zero variance features.
 Perform imputation if required.
@@ -283,6 +286,7 @@ lm_spec &lt;- linear_reg() %&gt;% # define a model
   set_mode("regression") # select a mode
 ```
 
+.footnote[https://parsnip.tidymodels.org/reference/]
 --
 Two modes of modeling:
 
@@ -297,6 +301,7 @@ Two modes of modeling:
 --
 &lt;br&gt;
 *The same model can be fit with different engines where hyperparameters name can be different accordingly*
+
 
 
 ---
@@ -325,6 +330,7 @@ rf_spec &lt;- rand_forest(
   set_mode("classification") 
 ```
 
+.footnote[https://tune.tidymodels.org/reference/]
 --
 - Create a grid of values for hyperparameters
 
@@ -337,24 +343,28 @@ rf_grid &lt;- grid_regular(
 )
 ```
 
----
-## Tune hyperparameters in &lt;span style="color:red"&gt;workflow&lt;/span&gt;
 
-`workflow` stitch all elements together
+
+---
+## Tune hyperparameters in &lt;span style="color:red"&gt;workflows&lt;/span&gt;
+
+`workflows` stitch all elements together
 
 
 ```r
 rf_wf &lt;- workflow() %&gt;% # create a workflow
-  add_model(rf_spec) %&gt;% # add model specification
-  add_recipe(data_rec) # add data recipes
+* add_model(rf_spec) %&gt;% # add model specification
+* add_recipe(data_rec) # add data recipes
 
+set.seed(234) # for random forest fit
 rf_res &lt;- rf_wf %&gt;% 
-  tune_grid(
-    resamples = data_folds, # use resample cv folds to tune
-    grid = rf_grid # hyperparameters grid
+* tune_grid(
+*   resamples = data_folds, # use resample cv folds to tune
+*   grid = rf_grid, # hyperparameters grid
+    control = control_grid(save_workflow = T) # save workflow
   )
 
-rf_res
+rf_res %&gt;% head(5)
 ```
 
 
@@ -369,6 +379,8 @@ rf_res
 ## 5 &lt;split [4753/528]&gt; Fold05 &lt;tibble [18 × 6]&gt; &lt;tibble [0 × 1]&gt;
 ```
 
+--
+.center[.bold[Question: how many times the model was fitted in our case?]]
 
 ---
 ## Evaluate hyperparameters 
@@ -384,16 +396,16 @@ rf_res %&gt;%
 ## # A tibble: 10 × 8
 ##     mtry min_n .metric  .estimator  mean     n  std_err .config
 ##    &lt;int&gt; &lt;int&gt; &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;  
-##  1     1     2 accuracy binary     0.739    10 0.000887 Prepro…
-##  2     1     2 roc_auc  binary     0.828    10 0.00858  Prepro…
-##  3     5     2 accuracy binary     0.798    10 0.00447  Prepro…
-##  4     5     2 roc_auc  binary     0.837    10 0.00686  Prepro…
-##  5    10     2 accuracy binary     0.786    10 0.00464  Prepro…
-##  6    10     2 roc_auc  binary     0.826    10 0.00713  Prepro…
-##  7     1    21 accuracy binary     0.739    10 0.00102  Prepro…
-##  8     1    21 roc_auc  binary     0.827    10 0.00893  Prepro…
-##  9     5    21 accuracy binary     0.803    10 0.00456  Prepro…
-## 10     5    21 roc_auc  binary     0.843    10 0.00623  Prepro…
+##  1     1     2 accuracy binary     0.738    10 0.000973 Prepro…
+##  2     1     2 roc_auc  binary     0.827    10 0.00896  Prepro…
+##  3     5     2 accuracy binary     0.795    10 0.00424  Prepro…
+##  4     5     2 roc_auc  binary     0.836    10 0.00680  Prepro…
+##  5    10     2 accuracy binary     0.788    10 0.00457  Prepro…
+##  6    10     2 roc_auc  binary     0.827    10 0.00674  Prepro…
+##  7     1    21 accuracy binary     0.741    10 0.00131  Prepro…
+##  8     1    21 roc_auc  binary     0.828    10 0.00866  Prepro…
+##  9     5    21 accuracy binary     0.800    10 0.00370  Prepro…
+## 10     5    21 roc_auc  binary     0.844    10 0.00646  Prepro…
 ```
 
 ---
@@ -419,6 +431,7 @@ final_wf &lt;- rf_wf %&gt;%
 
 
 ```r
+set.seed(123) # for random forest fit
 final_fit &lt;- final_wf %&gt;%
   last_fit(data_split)
 ```
@@ -437,7 +450,7 @@ final_fit %&gt;%
 ## # A tibble: 1 × 3
 ##   .metric .estimator .estimate
 ##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
-## 1 roc_auc binary         0.845
+## 1 roc_auc binary         0.844
 ```
 
 
@@ -459,6 +472,36 @@ final_fit %&gt;%
 &lt;img src="intro2tmwf_xaringan_files/figure-html/unnamed-chunk-22-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
+---
+## Predict on new data using trained workflow
+
+- Returns the trained workflow object
+
+
+```r
+final_wf_trained &lt;- final_fit %&gt;% 
+* extract_workflow()
+```
+
+--
+
+.center[required the control option `save_workflow = TRUE` was used in `tune_grid`] 
+
+.center[The trained workflow object can be saved for future prediction]
+
+&lt;br&gt;
+--
+
+- predict on new data
+
+
+```r
+final_wf_trained %&gt;% 
+* augment(new_data = wa_churn[1:5,]) %&gt;%
+  select(churn, contains(".pred_"))
+```
+
+.center[`augment` vs. `predict`]
 
 ---
 ## Importance of variables
@@ -467,10 +510,8 @@ final_fit %&gt;%
 
 ```r
 library(vip)
-final_tree &lt;- 
-  extract_workflow(final_fit)
 
-final_tree %&gt;% 
+final_wf_trained %&gt;% 
   extract_fit_parsnip() %&gt;% 
   vip() +
   theme_bw()
@@ -478,7 +519,7 @@ final_tree %&gt;%
 ]
 
 .pull-right[
-![](intro2tmwf_xaringan_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
+![](intro2tmwf_xaringan_files/figure-html/unnamed-chunk-26-1.png)&lt;!-- --&gt;
 
 ]
 
