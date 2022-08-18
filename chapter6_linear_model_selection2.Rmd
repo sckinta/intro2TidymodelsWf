@@ -17,7 +17,6 @@ output:
 knitr::opts_chunk$set(echo=T, eval = T, message = F, warning = F)
 ```
 
----
 ## Alternative fitting procedures to OLS
 
 #### Why?
