@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="author" content="Chun Su" />
     <meta name="date" content="2022-07-14" />
+    <script src="libs/header-attrs-2.14/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="libs/remark-css-0.0.1/rladies.css" rel="stylesheet" />
     <link href="libs/remark-css-0.0.1/rladies-fonts.css" rel="stylesheet" />
@@ -13,10 +14,18 @@
     <textarea id="source">
 class: center, middle, inverse, title-slide
 
+.title[
 # Introduction to tidymodels workflow
+]
+.author[
 ### Chun Su
+]
+.institute[
 ### R-ladies Philly
+]
+.date[
 ### 2022-07-14
+]
 
 ---
 
@@ -394,18 +403,18 @@ rf_res %&gt;%
 
 ```
 ## # A tibble: 10 × 8
-##     mtry min_n .metric  .estimator  mean     n  std_err .config
-##    &lt;int&gt; &lt;int&gt; &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;  
-##  1     1     2 accuracy binary     0.738    10 0.000973 Prepro…
-##  2     1     2 roc_auc  binary     0.827    10 0.00896  Prepro…
-##  3     5     2 accuracy binary     0.795    10 0.00424  Prepro…
-##  4     5     2 roc_auc  binary     0.836    10 0.00680  Prepro…
-##  5    10     2 accuracy binary     0.788    10 0.00457  Prepro…
-##  6    10     2 roc_auc  binary     0.827    10 0.00674  Prepro…
-##  7     1    21 accuracy binary     0.741    10 0.00131  Prepro…
-##  8     1    21 roc_auc  binary     0.828    10 0.00866  Prepro…
-##  9     5    21 accuracy binary     0.800    10 0.00370  Prepro…
-## 10     5    21 roc_auc  binary     0.844    10 0.00646  Prepro…
+##     mtry min_n .metric  .estimator  mean     n  std_err .config     
+##    &lt;int&gt; &lt;int&gt; &lt;chr&gt;    &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;       
+##  1     1     2 accuracy binary     0.738    10 0.000973 Preprocesso…
+##  2     1     2 roc_auc  binary     0.827    10 0.00896  Preprocesso…
+##  3     5     2 accuracy binary     0.795    10 0.00424  Preprocesso…
+##  4     5     2 roc_auc  binary     0.836    10 0.00680  Preprocesso…
+##  5    10     2 accuracy binary     0.788    10 0.00457  Preprocesso…
+##  6    10     2 roc_auc  binary     0.827    10 0.00674  Preprocesso…
+##  7     1    21 accuracy binary     0.741    10 0.00131  Preprocesso…
+##  8     1    21 roc_auc  binary     0.828    10 0.00866  Preprocesso…
+##  9     5    21 accuracy binary     0.800    10 0.00370  Preprocesso…
+## 10     5    21 roc_auc  binary     0.844    10 0.00646  Preprocesso…
 ```
 
 ---
@@ -587,6 +596,19 @@ if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
     deleted = true;
   });
 })();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
 (function() {
   "use strict"
   // Replace <script> tags in slides area to make them executable

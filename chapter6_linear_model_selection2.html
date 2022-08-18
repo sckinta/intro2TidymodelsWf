@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Chapter 6 Linear model selection and regularization</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Chun Su" />
+    <meta name="date" content="2022-08-18" />
+    <script src="libs/header-attrs-2.15/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# Chapter 6 Linear model selection and regularization
+]
+.author[
+### Chun Su
+]
+.institute[
+### R-ladies Philly
+]
+.date[
+### 2022-08-18
+]
+
+---
+
+
+
+
+---
+## Alternative fitting procedures to OLS
+
+#### Why?
+- prediction accuracy (p &gt; n)
+
+  - shrink the estimated coefficients to reduce the variance at the cost of a negligible increase in bias.
+
+- model interpretability
+
+  - automatic feature selection by setting coefficients to 0
+
+--
+
+#### How?
+
+- subset selection
+
+- shrinkage/regularization
+
+- dimension reduction
+
+???
+https://stats.stackexchange.com/questions/282663/why-is-n-p-a-problem-for-ols-regression
+
+---
+## subset selection
+#### 3 algorithms
+- Best subset selection (`2^p` models)
+- Stepwise Selection (`p*(p + 1)/2 + 1` models)
+ - forward
+ - backward
+
+--
+
+#### how to estimate test error
+- indirect
+  - Cp, AIC, BIC, adjusted R2
+- direct
+  - cross validation
+  &gt; **one-standard-error rule**:
+  &gt; We first calculate the one-standard error of the estimated test MSE for each model size, and then select the smallest model for which the estimated test error is within one error standard error of the lowest point on the curve'
+???
+d is the number of predictors, sigma^2 is the variance when using all predictors.
+
+The intuition behind the adjusted R2 is that once all of the correct variables have been included in the model, adding additional noise variables will lead to only a very small decrease in RSS
+
+---
+## Shrinkage Methods
+
+- ridge regularization (L2)
+![](./figures/ridge_regularization.png)
+
+- lasso regularization (L1)
+![](./figures/lasso_regularization.png)
+  - lasso yields sparse models - variable selection
+  
+???
+As λ increases, the flexibility of the ridge regression fit decreases, leading to decreased variance but increased bias.
+
+https://www.quora.com/Why-adding-more-variables-reduces-the-Residual-Square-Sums-RSS-in-a-linear-model
+
+---
+## Dimension reduction
+
+- Principle component analysis (PCA)/principal components regression (PCR) 
+
+  - unsupervised learning
+  
+  - Ridge regression as a continuous version of PCR (no feature selection)
+
+- Partial least squares (PLS)
+
+  - a supervised alternative to PCR
+  
+  - In practice it often performs no better than ridge regression or PCR. 
+---
+
+## Hitter data
+
+
+```r
+if(!require("glmnet")){
+    install.packages("glmnet")
+}
+
+if(!require("mixOmics")){
+    if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+    BiocManager::install("mixOmics")
+    # library(mixOmics)
+}
+library(ISLR)
+library(tidymodels)
+library(workflowsets)
+
+
+Hitters &lt;- as_tibble(Hitters) %&gt;%
+  filter(!is.na(Salary))
+
+Hitters
+```
+
+```
+## # A tibble: 263 × 20
+##    AtBat  Hits HmRun  Runs   RBI Walks Years CAtBat CHits CHmRun CRuns  CRBI
+##    &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt; &lt;int&gt;  &lt;int&gt; &lt;int&gt;  &lt;int&gt; &lt;int&gt; &lt;int&gt;
+##  1   315    81     7    24    38    39    14   3449   835     69   321   414
+##  2   479   130    18    66    72    76     3   1624   457     63   224   266
+##  3   496   141    20    65    78    37    11   5628  1575    225   828   838
+##  4   321    87    10    39    42    30     2    396   101     12    48    46
+##  5   594   169     4    74    51    35    11   4408  1133     19   501   336
+##  6   185    37     1    23     8    21     2    214    42      1    30     9
+##  7   298    73     0    24    24     7     3    509   108      0    41    37
+##  8   323    81     6    26    32     8     2    341    86      6    32    34
+##  9   401    92    17    49    66    65    13   5206  1332    253   784   890
+## 10   574   159    21   107    75    59    10   4631  1300     90   702   504
+## # … with 253 more rows, and 8 more variables: CWalks &lt;int&gt;, League &lt;fct&gt;,
+## #   Division &lt;fct&gt;, PutOuts &lt;int&gt;, Assists &lt;int&gt;, Errors &lt;int&gt;, Salary &lt;dbl&gt;,
+## #   NewLeague &lt;fct&gt;
+## # ℹ Use `print(n = ...)` to see more rows, and `colnames()` to see all variable names
+```
+
+---
+## data budget
+
+
+```r
+# initial split
+set.seed(19)
+data_split &lt;- initial_split(Hitters, strata = "Salary")
+
+data_train &lt;- training(data_split)
+data_test &lt;- testing(data_split)
+
+# 10-fold cross validation
+data_fold &lt;- vfold_cv(data_train, v = 10)
+```
+
+---
+## data preprocess
+
+Both lasso and ridge require scaled predictors.
+
+
+```r
+shrink_recipe &lt;- 
+  recipe(formula = Salary ~ ., data = data_train) %&gt;% 
+  step_novel(all_nominal_predictors()) %&gt;% 
+  step_dummy(all_nominal_predictors()) %&gt;% 
+  step_zv(all_predictors()) %&gt;% 
+  step_normalize(all_predictors())
+```
+
+PCA and PLS are tuned at preprocess recipe step. Here we are going to tune A fraction of the total variance that should be covered by the components. see more `?step_pca`
+
+
+```r
+pca_recipe &lt;- shrink_recipe %&gt;%
+    step_pca(all_predictors(), num_comp = tune::tune())
+
+pls_recipe &lt;- shrink_recipe %&gt;%
+    step_pls(all_predictors(), num_comp = tune::tune(), outcome = "Salary")
+```
+
+---
+## specify models - shrinkage model
+
+Tune lamda: `linear_reg`
+
+&gt; The tidymodels uses standardized parameter names across models chosen to be low on jargon. **The argument penalty is the equivalent of what glmnet calls the lambda value and mixture is the same as their alpha value**.
+
+&gt; The regularization penalty, does not need to be specified when fitting the model. The package fits a compendium of values, called the regularization path. These values depend on the data set and the value of alpha, the mixture parameter between a pure ridge model (alpha = 0) and a pure lasso model (alpha = 1).
+
+
+```r
+ridge_spec &lt;- 
+  linear_reg(penalty = tune(), mixture = 0) %&gt;% 
+  set_mode("regression") %&gt;% 
+  set_engine("glmnet")
+
+lasso_spec &lt;- 
+  linear_reg(penalty = tune(), mixture = 1) %&gt;% 
+  set_mode("regression") %&gt;% 
+  set_engine("glmnet")
+```
+
+https://github.com/tidymodels/yardstick/issues/152
+
+---
+## specify models - dimension reduction model
+
+
+```r
+lm_spec &lt;- 
+  linear_reg() %&gt;% 
+  set_mode("regression") %&gt;% 
+  set_engine("lm")
+```
+
+
+---
+## specify tuning hyperparameter grid 
+
+
+```r
+# hyperparameter grid for penalty
+penalty_grid &lt;- grid_regular(
+    penalty(range = c(-2, 2)), levels = 20
+)
+
+num_comp_grid &lt;- grid_regular(
+    num_comp(c(1, 20)), 
+    levels = 20
+)
+## hyperparameter grid for penalty
+```
+
+---
+## specify workflowset
+
+
+```r
+# workflowset
+shrink_models &lt;- 
+   workflow_set(
+      preproc = list(shrinkage = shrink_recipe, shrinkage = shrink_recipe, pca = pca_recipe, pls = pls_recipe),
+      models = list(ridge = ridge_spec, lasso = lasso_spec, lm = lm_spec, lm = lm_spec),
+      cross = F
+   )
+
+shrink_models
+```
+
+```
+## # A workflow set/tibble: 4 × 4
+##   wflow_id        info             option    result    
+##   &lt;chr&gt;           &lt;list&gt;           &lt;list&gt;    &lt;list&gt;    
+## 1 shrinkage_ridge &lt;tibble [1 × 4]&gt; &lt;opts[0]&gt; &lt;list [0]&gt;
+## 2 shrinkage_lasso &lt;tibble [1 × 4]&gt; &lt;opts[0]&gt; &lt;list [0]&gt;
+## 3 pca_lm          &lt;tibble [1 × 4]&gt; &lt;opts[0]&gt; &lt;list [0]&gt;
+## 4 pls_lm          &lt;tibble [1 × 4]&gt; &lt;opts[0]&gt; &lt;list [0]&gt;
+```
+
+
+
+---
+## Tune models
+
+
+
+
+```r
+tune_res1 &lt;- 
+   shrink_models %&gt;% 
+    filter(grepl("shrinkage_", wflow_id)) %&gt;% 
+   workflow_map(
+       "tune_grid", 
+       resamples = data_fold, 
+       grid = penalty_grid,
+       control = control_resamples(save_pred = T))
+
+tune_res2 &lt;- 
+   shrink_models %&gt;% 
+    filter(!grepl("shrinkage_", wflow_id)) %&gt;% 
+   workflow_map(
+       "tune_grid", 
+       resamples = data_fold, 
+       grid = num_comp_grid,
+       control = control_resamples(save_pred = T))
+
+tune_res &lt;- bind_rows(tune_res1, tune_res2)
+
+tune_res %&gt;% 
+    collect_metrics() %&gt;% 
+    dplyr::select(wflow_id, .config,.metric, mean, std_err)
+```
+
+---
+## Tuning result - `workflow_index`
+
+&lt;img src="chapter6_linear_model_selection2_files/figure-html/unnamed-chunk-13-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+## Tuning result - `penalty`
+
+&lt;img src="chapter6_linear_model_selection2_files/figure-html/unnamed-chunk-14-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+## Tuning result - `num_comp`
+
+&lt;img src="chapter6_linear_model_selection2_files/figure-html/unnamed-chunk-15-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+## Best hyperparameter overall
+
+For workflow, we can simply use something along the lines of `best_model &lt;- select_best(); finalize_workflow(best_model)` to select best workflow. However, no elegant way to do the same thing for workflowsets. ([More details](https://community.rstudio.com/t/what-is-workflows-select-best-finalize-workflow-fit-equivalent-for-workflowsets/143663))
+
+
+```r
+res_ranks &lt;- rank_results(tune_res, rank_metric = "rsq", select_best = TRUE)
+
+best_model &lt;- res_ranks %&gt;% 
+    filter(rank==1) %&gt;% 
+    distinct(wflow_id, .config) %&gt;% 
+    separate(.config, c("preprocess", "model"), sep="_") %&gt;% 
+    mutate_at(c("preprocess", "model"), readr::parse_number) %&gt;% 
+    inner_join(
+        num_comp_grid %&gt;% mutate(preprocess = 1:n())
+    )
+
+best_model
+```
+
+```
+## # A tibble: 1 × 4
+##   wflow_id preprocess model num_comp
+##   &lt;chr&gt;         &lt;dbl&gt; &lt;dbl&gt;    &lt;int&gt;
+## 1 pls_lm           12     1       12
+```
+
+---
+## Best hyperparameter - best shrinkage
+
+
+
+```r
+best_model_shrink &lt;- res_ranks %&gt;% 
+    filter(rank==3) %&gt;% 
+    distinct(wflow_id, .config) %&gt;% 
+    separate(.config, c("preprocess", "model"), sep="_") %&gt;% 
+    mutate_at(c("preprocess", "model"), readr::parse_number) %&gt;% 
+    inner_join(
+        penalty_grid %&gt;% mutate(model = 1:n())
+    )
+
+best_model_shrink
+```
+
+```
+## # A tibble: 1 × 4
+##   wflow_id        preprocess model penalty
+##   &lt;chr&gt;                &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+## 1 shrinkage_lasso          1    11    1.27
+```
+
+---
+## finalize workflow
+
+
+```r
+## pls model
+best_model &lt;- tune_res %&gt;% 
+    extract_workflow_set_result(id = "pls_lm") %&gt;% 
+    select_best(metric = "rsq")
+
+best_unfit_wf &lt;- tune_res %&gt;% 
+    extract_workflow(
+        id = "pls_lm")
+
+final_wf &lt;- finalize_workflow(best_unfit_wf, best_model) %&gt;% 
+    last_fit(split = data_split)
+```
+
+---
+## finalize workflow - shrinkage model
+
+
+```r
+## pls model
+best_model_shrink &lt;- tune_res %&gt;% 
+    extract_workflow_set_result(id = "shrinkage_lasso") %&gt;% 
+    select_best(metric = "rsq")
+
+best_unfit_wf_shrink &lt;- tune_res %&gt;% 
+    extract_workflow(
+        id = "shrinkage_lasso")
+
+final_wf_shrink &lt;- finalize_workflow(best_unfit_wf_shrink, best_model_shrink) %&gt;% 
+    last_fit(split = data_split)
+```
+
+
+---
+## estimate test error
+
+
+```r
+# get metrics for test data
+final_wf %&gt;% 
+    collect_metrics()
+```
+
+```
+## # A tibble: 2 × 4
+##   .metric .estimator .estimate .config             
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
+## 1 rmse    standard     349.    Preprocessor1_Model1
+## 2 rsq     standard       0.370 Preprocessor1_Model1
+```
+
+
+
+```r
+final_wf_shrink %&gt;% 
+    collect_metrics()
+```
+
+```
+## # A tibble: 2 × 4
+##   .metric .estimator .estimate .config             
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
+## 1 rmse    standard     335.    Preprocessor1_Model1
+## 2 rsq     standard       0.404 Preprocessor1_Model1
+```
+
+---
+## trained co-efficient
+
+
+```r
+final_wf %&gt;% 
+    extract_fit_parsnip() %&gt;% 
+    broom::tidy()
+```
+
+```
+## # A tibble: 13 × 5
+##    term        estimate std.error statistic  p.value
+##    &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+##  1 (Intercept)    533.      21.9      24.3  2.68e-59
+##  2 PLS01          111.       8.29     13.4  5.03e-29
+##  3 PLS02           77.6     19.0       4.09 6.35e- 5
+##  4 PLS03           39.0     14.6       2.67 8.21e- 3
+##  5 PLS04           78.4     27.1       2.89 4.34e- 3
+##  6 PLS05          124.      34.5       3.61 3.98e- 4
+##  7 PLS06           50.5     22.3       2.27 2.46e- 2
+##  8 PLS07          113.      41.5       2.72 7.25e- 3
+##  9 PLS08           94.8     35.1       2.71 7.47e- 3
+## 10 PLS09           65.6     38.9       1.68 9.38e- 2
+## 11 PLS10           76.7     55.0       1.39 1.65e- 1
+## 12 PLS11           51.6     40.1       1.29 2.00e- 1
+## 13 PLS12           61.8     57.3       1.08 2.82e- 1
+```
+
+---
+## trained co-efficient - shrinkage
+
+
+```r
+final_wf_shrink %&gt;% 
+    extract_fit_parsnip() %&gt;% 
+    broom::tidy() %&gt;% 
+    filter(estimate!=0)
+```
+
+```
+## # A tibble: 17 × 3
+##    term        estimate penalty
+##    &lt;chr&gt;          &lt;dbl&gt;   &lt;dbl&gt;
+##  1 (Intercept)    533.     1.27
+##  2 AtBat         -387.     1.27
+##  3 Hits           484.     1.27
+##  4 HmRun           64.1    1.27
+##  5 Runs           -97.4    1.27
+##  6 RBI            -82.1    1.27
+##  7 Walks          135.     1.27
+##  8 Years          -44.4    1.27
+##  9 CAtBat        -275.     1.27
+## 10 CRuns          452.     1.27
+## 11 CRBI           304.     1.27
+## 12 CWalks        -242.     1.27
+## 13 PutOuts         85.8    1.27
+## 14 Assists         57.5    1.27
+## 15 Errors         -18.9    1.27
+## 16 League_N        27.2    1.27
+## 17 Division_W     -63.2    1.27
+```
+
+
+---
+## prediction result on test data
+
+.pull-left[
+#### PLS test rsq = 0.370
+
+![](chapter6_linear_model_selection2_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+#### LASSO shrinkage test rsq = 0.404
+
+![](chapter6_linear_model_selection2_files/figure-html/unnamed-chunk-25-1.png)&lt;!-- --&gt;
+]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
