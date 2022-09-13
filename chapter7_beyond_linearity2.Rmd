@@ -2,7 +2,7 @@
 title: "Chapter 7 move beyond linear"
 author: "Chun Su"
 institute: "R-ladies Philly"
-date: "2022-08-18"
+date: "`Sys.Data()`"
 output:
   xaringan::moon_reader:
     css: ["default", "rladies", "rladies-fonts"]
