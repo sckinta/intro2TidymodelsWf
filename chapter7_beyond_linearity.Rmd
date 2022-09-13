@@ -1,0 +1,182 @@
+---
+title: "Chapter 7 Moving beyond linearity"
+author: "Chun Su"
+institute: "R-ladies Philly"
+date: `Sys.Date()`
+output:
+  xaringan::moon_reader:
+    css: ["default", "rladies", "rladies-fonts"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r include=F}
+knitr::opts_chunk$set(echo=T, eval = F, message = F, warning = F)
+```
+
+## The extensions of linear models
+
+- Polynomial regression (higher order)
+
+- Step function (distinct regions)
+
+- Spline
+
+  - Regression splines (knots)
+  
+  - Smoothing splines (smoothness penalty)
+
+- Local regression (region overlap)
+
+- Generalized additive model
+
+---
+## Polynomial regression
+
+- Generally speaking, it is unusual to use greater than 3 or 4 because for large values of X
+
+- Least squares returns variance estimates for each of the fitted coefficients βˆj, as well as the covariances between pairs of coefficient estimates. (p x p covariance matrix)
+
+- impose a global structure
+
+```{r}
+# regression
+fit <- lm(wage ~ poly(age, 4, raw = T), data = Wage)
+
+# classification
+fit <- glm(I(wage > 250) ~ poly(age, 4), data = Wage, family = binomial)
+```
+
+To determine the order of `poly` using `anova(fit1, fit2, fit3)` test hypothesis that a previous model is sufficient to explain the data than next models (`fit2` vs. `fit1`, `fit3` vs. `fit2` ...) 
+---
+## Step functions
+
+- K points break X into bins (K + 1), then fit different **constant** (**indicator function**) in each bin. Y = sum(beta*indicator functions). indicator function equals 0 or 1. Only one 1 cross K+1 functions
+
+- converting a continuous variable into an ordered categorical variable
+
+- very popular in bio-statistics and epidemiology, among other disciplines.
+
+--
+### basic functions (b)
+- b_1(X) ~ b_K(X)
+- indicator function
+- order of X
+
+
+---
+## regression splines
+
+- Piecewise polynomials
+  - different beta sets for different region.
+  - each region using polynomial
+  - region connection point is called *knots*. K points -> K+1 regions -> K+1 sets of betas.
+  - Using more knots leads to a more flexible piecewise polynomial
+  
+- constraints
+  - "smooth" the knots: bring the continuity at knots.
+  - constraints reduce degree of freedom (DF).
+  - The general definition of a degree-d spline is that it is a piecewise degree-d polynomial, with continuity in derivatives up to degree d − 1 at each knot.
+
+  
+---  
+## eg. cubic spline
+
+- K+4 DF = cubic (3) + K truncated power basis + 1 beta0
+- add one **truncated power basis** per knot.
+
+---
+## rgeression spline
+
+- Piecewise polynomials -> **K knots**
+- Piecewise polynomials constraints at knots (continuity) -> spline
+  - Degree of freedom = df of polynomials + K knots (**truncated power basis**)
+- splines can have high variance at the outer range of the predictors.
+  - **natural spline** is a regression spline with additional boundary constraints: the function is required to be linear at the boundary
+- knots number (cross validation) and location (uniform distributed over range)
+
+- cubic spline `bs`
+
+```{r}
+library(splines)
+fit <- lm(wage ~ bs(age, knots = c(25, 40, 60)), data = Wage) # by default cubic spline is used.
+fit <- lm(wage ~ bs(age, df = 6), data = Wage) # degree freedom of 6 (cubic spline with 3 knots) with knots at uniform quantile 
+attr(bs(age, df = 6), "knots")
+```
+
+- natural spline `ns`
+
+```{r}
+fit2 <- lm(wage ~ ns(age, df = 4), data = Wage)
+```
+
+???
+high flexibility -> low bias. 
+High order polynomial increase high flexibility, also increase df, high variance.
+High knots Spline increase high flexibility. but keeping degree fix to control variance. 
+
+
+degree freedom -> number of parameter to estimate
+d-1 basic functions. b(x)
+
+---
+## smoothing splines (`gam::s()`)
+
+- nonparametric to minimize loss + penalty (7.11)
+  - loss = RSS = sum
+  - penalty = lambda * g''. The larger lambda is, the smooth need to be.
+  
+- the function g(x) that minimizes (7.11) is a shrunken version of natural cubic spline with knots at x1, . . . , xn.
+
+- **effective degrees of freedom** (df_lambda) decrease from n to 2 when lambda increase from 0 to inf
+
+- one-out cross-validation error (LOOCV) to choose lambda
+  
+???
+1st derivative g' measure "slope"
+2nd derivative g'' measure the amount by which the slope is changing -> "roughness". large g'' means very wiggly, g''=0 means perfectly smooth.
+
+```{r eval =F}
+
+```
+
+---
+## local regression (`gam::lo`)
+
+- fit at a target point x0 using only the regression nearby training observations.
+
+- hyperparameters to tune
+  - span (s): the proportion of data to used for compute local regression. the smaller s is, more wiggly will be, higher variance, lower bias.
+  - weighting function K: weight for each point around the x0 in the local neighbourhood.
+  
+```{r eval=F}
+wage ~ lo(age, span=0.3) 
+```
+---
+## Generalized Additive Model (GAM)
+
+- For multi-variable X for y. allowing non-linear functions of each
+variable, while maintaining additivity.
+
+- each variable fi(xi) can be different. combination of non-linear models mentioned previously
+  - polynomial regression (`poly`)
+  
+  - step function
+  
+  - natural spline / regression spline (`splines::bs`, `splines::ns`)
+  
+  - smoothing spline (`gam::s()`)
+  
+  - local spline (`gam::lo()`)
+  
+```{r}
+library(gam)
+
+gam.m3 <- gam(wage ~ s(year, df = 4) + s(age, df = 5) + education,
+data = Wage)
+```
+ 
+ 

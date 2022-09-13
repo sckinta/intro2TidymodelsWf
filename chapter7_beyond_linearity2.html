@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Chapter 7 move beyond linear</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Chun Su" />
+    <meta name="date" content="2022-08-18" />
+    <script src="libs/header-attrs-2.15/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/rladies-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# Chapter 7 move beyond linear
+]
+.author[
+### Chun Su
+]
+.institute[
+### R-ladies Philly
+]
+.date[
+### 2022-08-18
+]
+
+---
+
+
+
+
+
+
+## The extensions of linear models
+
+- Polynomial regression
+
+- Step function
+- Splines
+
+  - polynomial splines
+  
+  - natural splines
+  
+  - smoothing splines
+
+- Local regression
+
+- Generalized Additive Model (GAM)
+
+---
+## Polynomial regression
+
+- raising each of the original predictors to a power
+
+![](figures/polynomial_function.png)
+
+- Generally speaking, it is unusual to use greater than 3 or 4 because for large values of X the polynomial curve can become overly flexible and can take on some very strange shapes.
+
+
+```r
+lm(wage ~ poly(age, 4, raw = T), data = Wage)
+```
+
+
+---
+## Step functions
+
+- K points break X into bins (K + 1), then fit different **constant** (**indicator function**) in each bin. Indicator function equals 0 or 1, and only one 1 cross K+1 functions.
+
+![](figures/step_function.png)
+
+
+```r
+lm(wage ∼ cut(age, 4), data = Wage)
+```
+
+--
+### Basic function
+
+![](figures/basic_function.png)
+
+---
+## Regression splines
+
+- Piecewise Polynomials: 
+  - **knots** divide to different regions of X
+  - **degree of polynomials** fit for each region.
+
+--
+
+- polynomial spline (`splines::bs`)
+  - piecewise polynomial with contraints on knots
+  - three constraints (continuity, continuity of the first derivative, and continuity of the second derivative)
+  - **degrees of freedom** = number_of_knots + degree_of_polynomials + number_of_intercept
+  - in practice it is common to place knots at uniform quantiles of the data. 
+
+--
+
+- natural spline (`splines::ns`)
+  - polynomial spline with additional boundary constraints
+  - **degrees of freedom** = number_of_knots + 1 + number_of_intercept
+  - usually degree of polynomials = 3
+  - `lm(wage ∼ ns(age, df = 4), data = Wage)`
+
+using least squares to estimate the spline coefficients
+
+???
+https://stats.stackexchange.com/questions/517375/splines-relationship-of-knots-degree-and-degrees-of-freedom
+
+---
+## smoothing spline (`smooth.spline`)
+
+- a function g that makes RSS small, but that is also smooth
+
+  - "Loss+Penalty"
+  ![](figures/smooth_spline.png)
+  - The first derivative g′(t) measures the slope of a function at t
+  - the second derivative g''(t) is a measure of its roughness
+  - the function g(x) that minimizes (7.11) is a shrunken natural cubic spline with knots at x1, . . . , xn. 
+
+- **effective degrees of freedom** (df_lambda) decrease from n to 2 when lambda increase from 0 to inf
+
+
+```r
+fit &lt;- smooth.spline(age, wage, df = 16)
+```
+
+---
+## local regression (`stats::loess`)
+
+- fit at a target point x0 using only the regression nearby training observations
+
+- Hyperparameter **span s** is the proportion of points used to compute the local regression at x0
+  - The smaller the value of s, the more local and wiggly will be our fit
+  - `s = k/n` where k is k nearest neighbors.
+  
+- Using a **weighted** least squares regression
+
+
+```r
+fit &lt;- loess(wage ∼ age, span = .2, data = Wage)
+```
+
+---
+## Generalized additive models (GAMs) 
+
+- provide a general framework for generalized extending a standard linear model by allowing non-linear functions of each additive of the variables,while maintaining additivity.
+
+- a big linear regression model using an appropriate choice of basis functions
+
+
+```r
+gam1 &lt;- lm(wage ~ ns(year, 4) + ns(age, 5) + education, data = Wage)
+
+gam.s &lt;- gam(wage ~ gam::s(age, df = 16) + education, data = Wage)
+
+gam.lo &lt;- gam(wage ~ gam::l(age, span = 0.7) + education, data = Wage)
+```
+
+---
+## budget data
+
+
+```r
+library(tidymodels)
+library(ISLR)
+
+Wage &lt;- as_tibble(Wage)
+
+# initial split
+set.seed(123)
+wage_split &lt;- initial_split(Wage)
+wage_train &lt;- training(wage_split)
+wage_test &lt;- testing(wage_split)
+
+# cv folds
+set.seed(234)
+wage_folds &lt;- vfold_cv(wage_train)
+```
+
+
+---
+## polynomial regression tune
+
+The order of polynomial is defined by `recipe::step_poly` at feature engineer step.
+
+
+```r
+# recipe
+rec_poly &lt;- recipe(wage ~ age, data = wage_train) %&gt;%
+  step_poly(age, degree = tune(), options = list(raw = TRUE))
+
+# model
+lm_spec &lt;- linear_reg() %&gt;%
+  set_mode("regression") %&gt;%
+  set_engine("lm")
+
+# workflow
+poly_wf &lt;- workflow() %&gt;%
+  add_model(lm_spec) %&gt;%
+  add_recipe(rec_poly)
+
+# specify hyperparameter tune
+degree_grid &lt;- tibble(degree = 1:5)
+
+# tune
+poly_rs &lt;- poly_wf %&gt;% 
+    tune_grid(
+        resamples = wage_folds,
+        grid = degree_grid
+    )
+```
+
+
+---
+## select best degree of polynomial
+
+![](chapter7_beyond_linearity2_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
+
+---
+## last fit using best degree of polynomial
+
+
+```r
+best_hyper &lt;- select_by_one_std_err(poly_rs, metric = "rmse", degree)
+
+best_hyper
+```
+
+```
+## # A tibble: 1 × 9
+##   degree .metric .estimator  mean     n std_err .config              .best .bound
+##    &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;                &lt;dbl&gt;  &lt;dbl&gt;
+## 1      2 rmse    standard    39.8    10   0.631 Preprocessor2_Model1  39.8   40.4
+```
+
+```r
+poly_wf_final &lt;- poly_wf %&gt;% 
+    finalize_workflow(best_hyper) %&gt;% 
+    last_fit(wage_split)
+
+poly_wf_final %&gt;% 
+    extract_workflow() %&gt;% 
+    saveRDS("wage_poly_model.rds")
+```
+
+---
+## final model metrics and parameters
+
+- metrics on test data
+
+
+```r
+poly_wf_final %&gt;% 
+    collect_metrics()
+```
+
+```
+## # A tibble: 2 × 4
+##   .metric .estimator .estimate .config             
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
+## 1 rmse    standard     40.4    Preprocessor1_Model1
+## 2 rsq     standard      0.0495 Preprocessor1_Model1
+```
+
+- check co-efficient
+
+
+```r
+poly_wf_final %&gt;% 
+    extract_fit_parsnip() %&gt;% 
+    tidy()
+```
+
+```
+## # A tibble: 3 × 5
+##   term        estimate std.error statistic  p.value
+##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept) -18.2      9.23        -1.98 4.82e- 2
+## 2 age_poly_1    5.70     0.439       13.0  2.74e-37
+## 3 age_poly_2   -0.0574   0.00500    -11.5  9.72e-30
+```
+
+---
+## prediction using finalized polynomial
+
+![](chapter7_beyond_linearity2_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+
+
+
+```r
+trained_poly_wf &lt;- readRDS("wage_poly_model.rds")
+trained_poly_wf %&gt;% 
+    augment(new_data =data.frame(age = 50))
+```
+
+```
+## # A tibble: 1 × 2
+##     age .pred
+##   &lt;dbl&gt; &lt;dbl&gt;
+## 1    50  123.
+```
+
+---
+## step function
+
+`step_discretize()` will convert a numeric variable into a factor variable with n bins, n here is specified with `num_breaks`
+
+If you already know where you want the step function to break then you can use `step_cut()` and supply the `breaks` manually.
+
+
+```r
+rec_discretize &lt;- recipe(wage ~ age, data = Wage) %&gt;%
+  step_discretize(age, num_breaks = 4)
+
+discretize_wf &lt;- workflow() %&gt;%
+  add_model(lm_spec) %&gt;%
+  add_recipe(rec_discretize)
+
+discretize_rs &lt;- fit_resamples(
+    discretize_wf, 
+    resamples = wage_folds
+    )
+
+discretize_rs %&gt;% 
+    collect_metrics()
+```
+
+```
+## # A tibble: 2 × 6
+##   .metric .estimator    mean     n std_err .config             
+##   &lt;chr&gt;   &lt;chr&gt;        &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;               
+## 1 rmse    standard   40.5       10 0.681   Preprocessor1_Model1
+## 2 rsq     standard    0.0694    10 0.00956 Preprocessor1_Model1
+```
+
+??? 
+`fit_resamples` their only purpose is for computing the .metrics to estimate performance.
+
+---
+## step function final fit
+
+
+```r
+discretize_wf_final &lt;- discretize_wf %&gt;% 
+    last_fit(wage_split)
+
+discretize_wf_final %&gt;% 
+    extract_fit_parsnip() %&gt;% 
+    tidy()
+```
+
+```
+## # A tibble: 4 × 5
+##   term        estimate std.error statistic  p.value
+##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept)     93.5      1.69     55.2  0       
+## 2 agebin2         24.2      2.39     10.1  1.34e-23
+## 3 agebin3         28.2      2.36     12.0  4.46e-32
+## 4 agebin4         22.4      2.47      9.08 2.23e-19
+```
+
+---
+## step function prediction
+
+![](chapter7_beyond_linearity2_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
+
+
+---
+## polynomial splines / cubic splines
+
+In the example, author directly specifies the internal breakpoints that define the spline, which usually takes quantiles for multiple knots.
+
+Here, we tune number of `knots` by degree of freedom `deg_free`.
+
+For more details, `?step_bs` or `?bs`.
+
+
+```r
+rec_cubic &lt;- recipe(wage ~ age, data = Wage) %&gt;%
+  step_bs(age, deg_free = tune(), degree = 3)
+
+cubic_wf &lt;- workflow() %&gt;%
+  add_model(lm_spec) %&gt;%
+  add_recipe(rec_cubic)
+
+grid_df &lt;- grid_regular(
+    deg_free(range = c(4,12)), 
+    levels = 5
+)
+
+cubic_rs &lt;- tune_grid(
+    cubic_wf, 
+    resamples = wage_folds,
+    grid = grid_df 
+    )
+```
+
+
+---
+## select best hyparameter (`deg_free`)
+
+
+```r
+best_hyper &lt;- select_by_one_std_err(cubic_rs, metric = "rmse", deg_free)
+
+best_hyper
+```
+
+```
+## # A tibble: 1 × 9
+##   deg_free .metric .estimator  mean     n std_err .config              .best .bound
+##      &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;                &lt;dbl&gt;  &lt;dbl&gt;
+## 1        4 rmse    standard    39.8    10   0.625 Preprocessor1_Model1  39.8   40.4
+```
+
+```r
+cubic_wf_final &lt;- cubic_wf %&gt;% 
+    finalize_workflow(best_hyper) %&gt;% 
+    last_fit(wage_split)
+```
+
+
+---
+## final model metrics and parameters
+
+- metrics on test data
+
+
+```r
+cubic_wf_final %&gt;% 
+    collect_metrics()
+```
+
+```
+## # A tibble: 2 × 4
+##   .metric .estimator .estimate .config             
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
+## 1 rmse    standard     40.3    Preprocessor1_Model1
+## 2 rsq     standard      0.0527 Preprocessor1_Model1
+```
+
+- check co-efficient
+
+
+```r
+cubic_wf_final %&gt;% 
+    extract_fit_parsnip() %&gt;% 
+    tidy()
+```
+
+```
+## # A tibble: 5 × 5
+##   term        estimate std.error statistic  p.value
+##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1 (Intercept)     54.5      6.01      9.06 2.78e-19
+## 2 age_bs_1        46.6      9.81      4.75 2.12e- 6
+## 3 age_bs_2        84.8      7.28     11.7  1.64e-30
+## 4 age_bs_3        53.8     11.9       4.53 6.19e- 6
+## 5 age_bs_4        37.3     13.9       2.68 7.49e- 3
+```
+
+---
+## Compare predictions among multiple models.
+
+
+.pull-left[
+![](chapter7_beyond_linearity2_files/figure-html/unnamed-chunk-22-1.png)&lt;!-- --&gt;
+]
+
+
+.pull-right[
+![](chapter7_beyond_linearity2_files/figure-html/unnamed-chunk-23-1.png)&lt;!-- --&gt;
+]
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
